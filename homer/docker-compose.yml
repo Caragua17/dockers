@@ -1,12 +1,30 @@
 version: "2"
+
+volumes:
+  data:
+    driver: local
+
+networks:
+  traefik_proxy:
+    name: traefik_proxy
+    external: true
+
 services:
   homer:
     image: b4bz/homer
     container_name: homer
+    restart: unless-stopped
     volumes:
-      - /media/raid/homer:/www/assets
-    ports:
-      - 8080:8080
-    user: 1000:1000
+      - data:/www/assets
     environment:
       - INIT_ASSETS=1
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homer.entrypoints=web, websecure
+      - traefik.http.routers.homer.rule=Host(`$PROXY_EXT_HOST`)
+      - traefik.http.routers.homer.tls=true
+      - traefik.http.routers.homer.tls.certresolver=myresolver
+      - traefik.http.services.homer-ui.loadbalancer.server.port=8080
+      - traefik.http.routers.homer.service=homer-ui
+    networks:
+      - traefik_proxy

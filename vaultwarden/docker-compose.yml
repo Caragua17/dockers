@@ -1,28 +1,39 @@
 version: '3'
 
+volumes:
+  data:
+    driver: local
+
+networks:
+  traefik_proxy:
+    name: traefik_proxy
+    external: true
+
 services:
   vaultwarden:
     image: vaultwarden/server:latest
     container_name: vaultwarden
-    restart: always
+    restart: unless-stopped
     environment:
       WEBSOCKET_ENABLED: "true" # Enable WebSocket notifications.
-      DOMAIN: "${VW_DOMAIN}"
-      SMTP_HOST: "ssl0.ovh.net"
-      SMTP_FROM: "${SMTP_USERNAME}"
-      SMTP_PORT: "587"
+      DOMAIN: $VW_DOMAIN
+      SMTP_HOST: $SMTP_HOST
+      SMTP_FROM: $SMTP_USERNAME
+      SMTP_PORT: $SMTP_PORT
       SMTP_SECURITY: "starttls"
-      SMTP_USERNAME: "${SMTP_USERNAME}"
-      SMTP_PASSWORD: "${SMTP_PASSWORD}"
-      ADMIN_TOKEN: "${VW_ADMIN_TOKEN}"
+      SMTP_USERNAME: $SMTP_USERNAME
+      SMTP_PASSWORD: $SMTP_PASSWORD
+      ADMIN_TOKEN: $VW_ADMIN_TOKEN
     volumes:
-      - "/media/raid/vaultwarden/data:/data"
+      - data:/data
     ports:
-      - "7677:80"
       - "3012:3012"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.vaultwarden.entrypoints=web, websecure
+      - traefik.http.routers.vaultwarden.rule=(Host(`$PROXY_EXT_HOST`) && !Path(`/admin`)) || Host(`$PROXY_LAN_HOST`)
+      - traefik.http.routers.vaultwarden.tls=true
+      - traefik.http.routers.vaultwarden.tls.certresolver=myresolver
+      - traefik.http.routers.vaultwarden.middlewares=authelia@docker
     networks:
-      - nginx-net
-networks:
-  nginx-net:
-    name: proxynet
-    external: true
+      - traefik_proxy

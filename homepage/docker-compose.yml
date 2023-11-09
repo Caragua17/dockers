@@ -1,0 +1,32 @@
+version: "3.3"
+
+volumes:
+  config:
+    driver: local
+  images:
+    driver: local
+
+networks:
+  traefik_proxy:
+    name: traefik_proxy
+    external: true
+
+services:
+  homepage:
+    image: ghcr.io/benphelps/homepage:latest
+    container_name: homepage
+    restart: unless-stopped
+    volumes:
+      - config:/app/config # Make sure your local config directory exists
+      - images:/app/public/images
+      - /var/run/docker.sock:/var/run/docker.sock:ro # (optional) For docker integrations
+      - /:/disk1
+      - /dev/dev-disk-by-uuid-a8f46fd4-96ef-4f39-9ea9-19a608f45d40:/disk2
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homepage.entrypoints=web, websecure
+      - traefik.http.routers.homepage.rule=Host(`$PROXY_LAN_HOST`)
+      - traefik.http.routers.homepage.tls=true
+      - traefik.http.routers.homepage.tls.certresolver=myresolver
+    networks:
+      - traefik_proxy
